@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Valuation Calculator</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #2c3e50;
+      --secondary-color: #34495e;
+      --accent-color: #3498db;
+    }
+    
+    body {
+      background-color: #f5f6fa;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .container {
+      max-width: 1000px;
+      padding: 2rem;
+    }
+    
+    .card {
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      background: white;
+      margin-bottom: 2rem;
+    }
+    
+    .card-header {
+      background: var(--primary-color);
+      color: white;
+      border-radius: 15px 15px 0 0 !important;
+      padding: 1rem 1.5rem;
+    }
+    
+    .form-label {
+      color: var(--secondary-color);
+      font-weight: 600;
+    }
+    
+    .form-control {
+      border-radius: 8px;
+      border: 2px solid #e0e0e0;
+      padding: 0.75rem;
+      transition: all 0.3s;
+    }
+    
+    .form-control:focus {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+    
+    .btn-primary {
+      background-color: var(--accent-color);
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary:hover {
+      background-color: #2980b9;
+      transform: translateY(-2px);
+    }
+    
+    .results {
+      background-color: white;
+      border-radius: 15px;
+      padding: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .table {
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    
+    .table thead th {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+    }
+    
+    .metric-card {
+      background: white;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-5">
+    <div class="card">
+      <div class="card-header">
+        <h1 class="text-center mb-0">Stock Valuation Calculator</h1>
+      </div>
+      <div class="card-body">
+        <form id="valuationForm">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="currentFCF" class="form-label">Current Free Cash Flow (FCF) ($ millions)</label>
+                <input type="number" class="form-control" id="currentFCF" value="100" required>
+              </div>
+              <div class="mb-3">
+                <label for="growthRate" class="form-label">Annual Growth Rate (%)</label>
+                <input type="number" class="form-control" id="growthRate" value="10" required>
+              </div>
+              <div class="mb-3">
+                <label for="terminalGrowthRate" class="form-label">Terminal Growth Rate (%)</label>
+                <input type="number" class="form-control" id="terminalGrowthRate" value="3" required>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="wacc" class="form-label">Discount Rate (WACC) (%)</label>
+                <input type="number" class="form-control" id="wacc" value="8" required>
+              </div>
+              <div class="mb-3">
+                <label for="years" class="form-label">Number of Years for Projection</label>
+                <input type="number" class="form-control" id="years" value="5" required>
+              </div>
+              <div class="mb-3">
+                <label for="sharesOutstanding" class="form-label">Shares Outstanding (millions)</label>
+                <input type="number" class="form-control" id="sharesOutstanding" value="500" required>
+              </div>
+            </div>
+          </div>
+          <div class="text-center">
+            <button type="button" class="btn btn-primary btn-lg" onclick="calculateValuation()">Calculate Valuation</button>
+          </div>
+        </form>
+
+        <div class="results mt-4" id="results" style="display: none;">
+          <h3 class="mb-4">Valuation Results</h3>
+          <div class="row">
+            <div class="col-md-6 offset-md-3">
+              <div class="metric-card text-center">
+                <h4>Intrinsic Value per Share</h4>
+                <div class="metric-value" id="intrinsicValue">-</div>
+              </div>
+            </div>
+          </div>
+          
+          <h4 class="mt-4 mb-3">Sensitivity Analysis</h4>
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Growth Rate (%)</th>
+                  <th>Discount Rate (%)</th>
+                  <th>Intrinsic Value ($)</th>
+                </tr>
+              </thead>
+              <tbody id="sensitivityTableBody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function calculateValuation() {
+      const currentFCF = parseFloat(document.getElementById('currentFCF').value);
+      const growthRate = parseFloat(document.getElementById('growthRate').value) / 100;
+      const terminalGrowthRate = parseFloat(document.getElementById('terminalGrowthRate').value) / 100;
+      const wacc = parseFloat(document.getElementById('wacc').value) / 100;
+      const years = parseInt(document.getElementById('years').value);
+      const sharesOutstanding = parseFloat(document.getElementById('sharesOutstanding').value);
+
+      let futureFCFs = [];
+      for (let i = 1; i <= years; i++) {
+        futureFCFs.push(currentFCF * Math.pow(1 + growthRate, i));
+      }
+
+      const terminalValue = (futureFCFs[futureFCFs.length - 1] * (1 + terminalGrowthRate)) / (wacc - terminalGrowthRate);
+      let discountedCashFlows = futureFCFs.map((fcf, index) => fcf / Math.pow(1 + wacc, index + 1));
+      const discountedTerminalValue = terminalValue / Math.pow(1 + wacc, years);
+
+      const totalDiscountedCashFlows = discountedCashFlows.reduce((sum, val) => sum + val, 0) + discountedTerminalValue;
+      const intrinsicValuePerShare = totalDiscountedCashFlows / sharesOutstanding;
+
+      document.getElementById('intrinsicValue').textContent = `$${intrinsicValuePerShare.toFixed(2)}`;
+      document.getElementById('results').style.display = 'block';
+
+
+      const sensitivityTableBody = document.getElementById('sensitivityTableBody');
+      sensitivityTableBody.innerHTML = '';
+      const growthRates = [growthRate - 0.02, growthRate, growthRate + 0.02];
+      const discountRates = [wacc - 0.01, wacc, wacc + 0.01];
+
+      growthRates.forEach(g => {
+        discountRates.forEach(d => {
+          const terminalVal = (futureFCFs[futureFCFs.length - 1] * (1 + terminalGrowthRate)) / (d - terminalGrowthRate);
+          const discountedFCFs = futureFCFs.map((fcf, index) => fcf / Math.pow(1 + d, index + 1));
+          const totalVal = discountedFCFs.reduce((sum, val) => sum + val, 0) + (terminalVal / Math.pow(1 + d, years));
+          const intrinsicVal = totalVal / sharesOutstanding;
+
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${(g * 100).toFixed(2)}</td>
+            <td>${(d * 100).toFixed(2)}</td>
+            <td>$${intrinsicVal.toFixed(2)}</td>
+          `;
+          sensitivityTableBody.appendChild(row);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
